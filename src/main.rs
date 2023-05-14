@@ -18,7 +18,7 @@ impl Tree {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum Player {
     X,
     O,
@@ -26,8 +26,8 @@ enum Player {
 
 #[derive(Clone)]
 struct Move {
-    row: i32,
-    col: i32,
+    row: usize,
+    col: usize,
 }
 
 struct Node {
@@ -61,6 +61,7 @@ impl Node {
                     _ => panic!("Only '.xo' accepted."),
                 }
             }
+            state.push(this_row);
         }
         Node {
             player: Player::O,
@@ -68,6 +69,22 @@ impl Node {
             moves: Vec::new(),
             is_max: true,
         }
+    }
+
+    pub fn string(&self) -> String {
+        let mut s = String::from("");
+        for row in self.state.clone() {
+            for val in row.clone() {
+                match val {
+                    Some(Player::X) => s.push_str("x"),
+                    Some(Player::O) => s.push_str("o"),
+                    _ => s.push_str("."),
+                }
+            }
+            s.push_str("\n");
+        }
+        s.push_str("\n");
+        s
     }
     pub fn is_terminal(&self) -> bool {
         false
@@ -90,7 +107,51 @@ impl Node {
     }
 
     pub fn score(&self) -> i32 {
+        for p in [Player::X, Player::O] {
+            let sign = match p {
+                Player::X => 1,
+                Player::O => -1,
+            };
+            if self
+                .state
+                .iter()
+                .any(|row| row.iter().all(|val| val.is_some() && val.unwrap() == p))
+            {
+                return 10 * sign;
+            }
+            if self
+                .state
+                .iter()
+                .any(|row| row.iter().all(|val| val.is_some() && val.unwrap() == p))
+            {
+                return 10 * sign;
+            }
+        }
         0
+    }
+
+    pub fn make_move(&self, m: Move) -> Node {
+        let rix = m.row;
+        let cix = m.col;
+        let maybe_cell = self.state[rix][cix];
+        match maybe_cell {
+            None => {
+                let mut next_state = self.state.clone();
+                next_state[rix][cix] = Some(self.player);
+                let mut next_moves = self.moves.clone();
+                next_moves.push(m);
+                return Node {
+                    state: next_state,
+                    player: match self.player {
+                        Player::X => Player::O,
+                        Player::O => Player::X,
+                    },
+                    moves: next_moves,
+                    is_max: !self.is_max,
+                };
+            }
+            Some(_) => panic!("cell occupied {}{}", rix, cix),
+        }
     }
 }
 
@@ -124,5 +185,6 @@ fn minimax(node: &Node) -> &Node {
 
 fn main() {
     println!("Rust Wordle implementation.");
-    _ = Tree::new();
+    let node = Node::from_string(String::from("ox.o....."));
+    print!("{}", node.string());
 }
