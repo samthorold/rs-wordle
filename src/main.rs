@@ -1,22 +1,4 @@
-use std::collections::HashMap;
-
-struct TreeEntry {
-    children: Vec<String>,
-    max: i32,
-    min: i32,
-}
-
-struct Tree {
-    contents: HashMap<String, TreeEntry>,
-}
-
-impl Tree {
-    pub fn new() -> Tree {
-        Tree {
-            contents: HashMap::new(),
-        }
-    }
-}
+use std::io;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Player {
@@ -24,7 +6,7 @@ enum Player {
     O,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 struct Move {
     row: usize,
     col: usize,
@@ -48,7 +30,7 @@ impl Clone for Node {
 }
 
 impl Node {
-    pub fn from_string(string: String) -> Node {
+    pub fn from_string(string: String, player: Player) -> Node {
         let mut state = Vec::new();
         for r in 0..3 {
             let mut this_row = Vec::new();
@@ -64,10 +46,13 @@ impl Node {
             state.push(this_row);
         }
         Node {
-            player: Player::O,
+            player,
             state,
             moves: Vec::new(),
-            is_max: true,
+            is_max: match player {
+                Player::X => true,
+                Player::O => false,
+            },
         }
     }
 
@@ -87,6 +72,18 @@ impl Node {
         s
     }
     pub fn is_terminal(&self) -> bool {
+        if self.score() != 0 {
+            return true;
+        }
+
+        if self
+            .state
+            .iter()
+            .all(|row| row.iter().all(|val| val.is_some()))
+        {
+            return true;
+        }
+
         false
     }
 
@@ -95,15 +92,18 @@ impl Node {
     }
 
     pub fn children(&self) -> Vec<Node> {
-        vec![Node {
-            player: match self.player {
-                Player::X => Player::O,
-                Player::O => Player::X,
-            },
-            state: self.state.clone(),
-            is_max: !self.is_max,
-            moves: self.moves.to_vec(),
-        }]
+        let mut chdn = Vec::new();
+        if self.is_terminal() {
+            return chdn;
+        }
+        for (rix, row) in self.state.iter().enumerate() {
+            for (cix, val) in row.iter().enumerate() {
+                if !val.is_some() {
+                    chdn.push(self.make_move(Move { row: rix, col: cix }));
+                }
+            }
+        }
+        chdn
     }
 
     pub fn score(&self) -> i32 {
@@ -119,10 +119,26 @@ impl Node {
             {
                 return 10 * sign;
             }
-            if self
-                .state
-                .iter()
-                .any(|row| row.iter().all(|val| val.is_some() && val.unwrap() == p))
+
+            for c in 0..3 {
+                if (self.state[0][c].is_some() && self.state[0][c].unwrap() == p)
+                    && (self.state[1][c].is_some() && self.state[1][c].unwrap() == p)
+                    && (self.state[2][c].is_some() && self.state[2][c].unwrap() == p)
+                {
+                    return 10 * sign;
+                }
+            }
+
+            if (self.state[0][0].is_some() && self.state[0][0].unwrap() == p)
+                && (self.state[1][1].is_some() && self.state[1][1].unwrap() == p)
+                && (self.state[2][2].is_some() && self.state[2][2].unwrap() == p)
+            {
+                return 10 * sign;
+            }
+
+            if (self.state[0][2].is_some() && self.state[0][2].unwrap() == p)
+                && (self.state[1][1].is_some() && self.state[1][1].unwrap() == p)
+                && (self.state[2][0].is_some() && self.state[2][0].unwrap() == p)
             {
                 return 10 * sign;
             }
@@ -155,7 +171,14 @@ impl Node {
     }
 }
 
-fn minimax(node: &Node) -> &Node {
+fn minimax(node: Node) -> Node {
+    // println!(
+    //     "minimax\n{}\n{}\n{}",
+    //     node.score(),
+    //     node.moves.len(),
+    //     node.string()
+    // );
+    // println!("{:#?}", node.moves);
     if node.is_terminal() {
         return node;
     }
@@ -164,18 +187,22 @@ fn minimax(node: &Node) -> &Node {
         false => 100,
     };
 
-    let mut best_node = node;
+    if node.children().len() == 0 {
+        panic!("Not terminal but no children.")
+    }
+
+    let mut best_node = node.clone();
 
     for child in node.children() {
-        let variation = minimax(&child);
+        let variation = minimax(child.clone());
         if node.is_maximising() {
             if variation.score() > best_score {
-                best_node = node;
+                best_node = variation;
                 best_score = best_node.score();
             }
         } else {
             if variation.score() < best_score {
-                best_node = node;
+                best_node = variation;
                 best_score = best_node.score();
             }
         }
@@ -183,8 +210,108 @@ fn minimax(node: &Node) -> &Node {
     best_node
 }
 
+fn get_move() -> Move {
+    let mut mv = String::new();
+    io::stdin().read_line(&mut mv).expect("Failed to read line");
+    let cmps = mv.trim().split_at(1);
+    // println!("{:#?}", cmps);
+
+    Move {
+        row: cmps.0.parse().expect("Not a number."),
+        col: cmps.1.parse().expect("Not a number."),
+    }
+}
+
 fn main() {
     println!("Rust Wordle implementation.");
-    let node = Node::from_string(String::from("ox.o....."));
-    print!("{}", node.string());
+    let mut node = Node::from_string(String::from("........."), Player::O);
+    loop {
+        let mv = get_move();
+        node = node.make_move(mv);
+        print!("{}", node.string());
+        if node.is_terminal() {
+            break;
+        }
+        let variation = minimax(node.clone());
+        node = node.make_move(variation.moves[node.moves.len()]);
+        print!("{}", node.string());
+        if node.is_terminal() {
+            break;
+        }
+    }
+    // print!("{}", node.string());
+    // println!("{}", node.score());
+    // let node = Node::from_string(String::from("ox.ox.o.."));
+    // print!("{}", node.string());
+    // println!("{}", node.score());
+    // let children = node.children();
+    // for ch in children {
+    //     print!("{}", ch.string());
+    // }
+    // let variation = minimax(node.clone());
+    // println!("{}", variation.score());
+    // print!("{}", variation.string());
+    // println!("{:#?}", variation.moves);
+
+    // println!("{:#?}", variation.moves[node.moves.len()]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn from_string() {
+        let _ = Node::from_string(String::from("ox.o....."), Player::X);
+    }
+
+    #[test]
+    fn to_string() {
+        let node = Node::from_string(String::from("ox.o....."), Player::X);
+        let _ = node.string();
+    }
+
+    #[test]
+    fn to_score_0() {
+        let node = Node::from_string(String::from("ox.o....."), Player::X);
+        let score = node.score();
+        assert_eq!(0, score);
+    }
+
+    #[test]
+    fn to_score_10() {
+        let node = Node::from_string(String::from("xxxoo...."), Player::X);
+        let score = node.score();
+        assert_eq!(10, score);
+    }
+
+    #[test]
+    fn to_score_minus_10() {
+        let node = Node::from_string(String::from("ox.ox.o.."), Player::X);
+        let score = node.score();
+        assert_eq!(-10, score);
+        let node = Node::from_string(String::from(".xo.xo..o"), Player::X);
+        let score = node.score();
+        assert_eq!(-10, score);
+    }
+
+    #[test]
+    fn children() {
+        let node = Node::from_string(String::from("ox.o....."), Player::X);
+        let children = node.children();
+        assert_eq!(6, children.len());
+    }
+
+    #[test]
+    fn no_children() {
+        let node = Node::from_string(String::from("ox.ox.o.."), Player::X);
+        let children = node.children();
+        assert_eq!(0, children.len());
+    }
+
+    #[test]
+    fn make_move() {
+        let node = Node::from_string(String::from("ox.o....."), Player::X);
+        let child = node.make_move(Move { row: 0, col: 2 });
+        assert_eq!("oxx\no..\n...\n\n", child.string());
+    }
 }
