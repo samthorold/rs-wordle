@@ -172,13 +172,6 @@ impl Node {
 }
 
 fn minimax(node: Node) -> Node {
-    // println!(
-    //     "minimax\n{}\n{}\n{}",
-    //     node.score(),
-    //     node.moves.len(),
-    //     node.string()
-    // );
-    // println!("{:#?}", node.moves);
     if node.is_terminal() {
         return node;
     }
