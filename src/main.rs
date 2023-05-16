@@ -214,11 +214,10 @@ fn get_move() -> Move {
     let mut mv = String::new();
     io::stdin().read_line(&mut mv).expect("Failed to read line");
     let cmps = mv.trim().split_at(1);
-    // println!("{:#?}", cmps);
 
     Move {
-        row: cmps.0.parse().expect("Not a number."),
-        col: cmps.1.parse().expect("Not a number."),
+        row: cmps.0.parse().expect("Row not a number."),
+        col: cmps.1.parse().expect("Col not a number."),
     }
 }
 
@@ -239,21 +238,6 @@ fn main() {
             break;
         }
     }
-    // print!("{}", node.string());
-    // println!("{}", node.score());
-    // let node = Node::from_string(String::from("ox.ox.o.."));
-    // print!("{}", node.string());
-    // println!("{}", node.score());
-    // let children = node.children();
-    // for ch in children {
-    //     print!("{}", ch.string());
-    // }
-    // let variation = minimax(node.clone());
-    // println!("{}", variation.score());
-    // print!("{}", variation.string());
-    // println!("{:#?}", variation.moves);
-
-    // println!("{:#?}", variation.moves[node.moves.len()]);
 }
 
 #[cfg(test)]
